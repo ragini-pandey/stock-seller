@@ -17,7 +17,7 @@ export default function LoginPage() {
 
   const handleLogin = (e: React.FormEvent) => {
     e.preventDefault();
-    
+
     if (!name.trim()) {
       toast({
         title: "Name Required",
@@ -107,13 +107,13 @@ export default function LoginPage() {
                 className="text-base"
               />
               <p className="text-xs text-muted-foreground">
-                We'll send stock alerts to this WhatsApp number
+                We will send stock alerts to this WhatsApp number
               </p>
             </div>
 
-            <Button 
-              type="submit" 
-              className="w-full text-base h-11" 
+            <Button
+              type="submit"
+              className="w-full text-base h-11"
               disabled={isLoading}
             >
               {isLoading ? "Logging in..." : "Continue to Dashboard"}
@@ -121,7 +121,7 @@ export default function LoginPage() {
 
             <div className="pt-4 border-t">
               <p className="text-xs text-muted-foreground text-center">
-                By continuing, you'll receive automated stock volatility alerts via WhatsApp
+                By continuing, you will receive automated stock volatility alerts via WhatsApp
               </p>
             </div>
           </form>

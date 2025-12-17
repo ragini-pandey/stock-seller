@@ -39,13 +39,13 @@ export default function BatchJobPage() {
     if (user) {
       setUserName(user.name);
     }
-    
+
     // Calculate market status on client side (no API call needed)
     const updateMarketStatus = () => {
       const status = getMarketStatus();
       setMarketStatus(status);
     };
-    
+
     updateMarketStatus();
     // Refresh market status every minute
     const interval = setInterval(updateMarketStatus, 60000);
@@ -159,44 +159,45 @@ export default function BatchJobPage() {
   };
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-gray-50 to-gray-100 dark:from-gray-900 dark:to-gray-800 p-8">
-      <div className="max-w-6xl mx-auto">
+    <div className='min-h-screen bg-gradient-to-br from-gray-50 to-gray-100 dark:from-gray-900 dark:to-gray-800 p-8'>
+      <div className='max-w-6xl mx-auto'>
         {/* Header with Logout */}
-        <div className="flex justify-between items-center mb-4">
+        <div className='flex justify-between items-center mb-4'>
           <div>
-            <p className="text-sm text-muted-foreground">Welcome, {userName}</p>
+            <p className='text-sm text-muted-foreground'>Welcome, {userName}</p>
           </div>
-          <div className="flex gap-2">
-            <Button asChild variant="outline" size="sm">
-              <Link href="/dashboard">Home</Link>
+          <div className='flex gap-2'>
+            <Button asChild variant='outline' size='sm'>
+              <Link href='/dashboard'>Home</Link>
             </Button>
-            <Button variant="outline" size="sm" onClick={handleLogout}>
+            <Button variant='outline' size='sm' onClick={handleLogout}>
               Logout
             </Button>
           </div>
         </div>
 
-        <div className="mb-8">
-          <h1 className="text-4xl font-bold mb-2">Automated Monitoring Dashboard</h1>
-          <p className="text-muted-foreground">
+        <div className='mb-8'>
+          <h1 className='text-4xl font-bold mb-2'>Automated Monitoring Dashboard</h1>
+          <p className='text-muted-foreground'>
             Real-time stock volatility monitoring with automatic API data fetching
           </p>
         </div>
 
-        <div className="grid lg:grid-cols-4 gap-6 mb-6">
+        <div className='grid lg:grid-cols-4 gap-6 mb-6'>
           <Card>
             <CardHeader>
               <CardTitle>Market Status</CardTitle>
               <CardDescription>US Stock Market</CardDescription>
             </CardHeader>
             <CardContent>
-              <Badge variant={marketStatus?.isOpen ? "default" : "secondary"} className="text-lg px-4 py-2">
-                {marketStatus?.isOpen ? "🟢 Open" : "🔴 Closed"}
+              <Badge
+                variant={marketStatus?.isOpen ? 'default' : 'secondary'}
+                className='text-lg px-4 py-2'
+              >
+                {marketStatus?.isOpen ? '🟢 Open' : '🔴 Closed'}
               </Badge>
               {marketStatus && (
-                <p className="text-xs text-muted-foreground mt-3">
-                  {marketStatus.message}
-                </p>
+                <p className='text-xs text-muted-foreground mt-3'>{marketStatus.message}</p>
               )}
             </CardContent>
           </Card>
@@ -207,10 +208,8 @@ export default function BatchJobPage() {
               <CardDescription>Stocks being monitored</CardDescription>
             </CardHeader>
             <CardContent>
-              <div className="text-4xl font-bold">{STOCK_WATCHLIST.length}</div>
-              <p className="text-sm text-muted-foreground mt-2">
-                Active stocks
-              </p>
+              <div className='text-4xl font-bold'>{STOCK_WATCHLIST.length}</div>
+              <p className='text-sm text-muted-foreground mt-2'>Active stocks</p>
             </CardContent>
           </Card>
 
@@ -220,14 +219,10 @@ export default function BatchJobPage() {
               <CardDescription>Current job status</CardDescription>
             </CardHeader>
             <CardContent>
-              <Badge variant={isRunning ? "default" : "secondary"} className="text-lg px-4 py-2">
-                {isRunning ? "Running..." : "Idle"}
+              <Badge variant={isRunning ? 'default' : 'secondary'} className='text-lg px-4 py-2'>
+                {isRunning ? 'Running...' : 'Idle'}
               </Badge>
-              {lastRun && (
-                <p className="text-xs text-muted-foreground mt-3">
-                  Last run: {lastRun}
-                </p>
-              )}
+              {lastRun && <p className='text-xs text-muted-foreground mt-3'>Last run: {lastRun}</p>}
             </CardContent>
           </Card>
 
@@ -235,55 +230,53 @@ export default function BatchJobPage() {
             <CardHeader>
               <CardTitle>Run Batch Job</CardTitle>
               <CardDescription>
-                {marketStatus?.isOpen 
-                  ? "Manually trigger automated check" 
-                  : "Available when market is open"}
+                {marketStatus?.isOpen
+                  ? 'Manually trigger automated check'
+                  : 'Available when market is open'}
               </CardDescription>
             </CardHeader>
             <CardContent>
-              <Button 
-                onClick={runBatchJob} 
-                disabled={isRunning}
-                size="lg"
-                className="w-full"
-              >
-                {isRunning ? "Processing..." : "Run Batch Job Now"}
+              <Button onClick={runBatchJob} disabled={isRunning} size='lg' className='w-full'>
+                {isRunning ? 'Processing...' : 'Run Batch Job Now'}
               </Button>
-              <p className="text-xs text-muted-foreground mt-3 text-center">
-                Automatically fetches current prices and calculates volatility for all {STOCK_WATCHLIST.length} stocks
+              <p className='text-xs text-muted-foreground mt-3 text-center'>
+                Automatically fetches current prices and calculates volatility for all{' '}
+                {STOCK_WATCHLIST.length} stocks
               </p>
             </CardContent>
           </Card>
         </div>
 
         {results && (
-          <Card className="mb-6">
+          <Card className='mb-6'>
             <CardHeader>
               <CardTitle>Last Run Results</CardTitle>
               <CardDescription>Batch job execution summary</CardDescription>
             </CardHeader>
             <CardContent>
-              <div className="grid grid-cols-3 gap-4 mb-6">
-                <div className="bg-muted p-4 rounded-lg text-center">
-                  <div className="text-2xl font-bold">{results.stocksProcessed}</div>
-                  <div className="text-sm text-muted-foreground">Processed</div>
+              <div className='grid grid-cols-3 gap-4 mb-6'>
+                <div className='bg-muted p-4 rounded-lg text-center'>
+                  <div className='text-2xl font-bold'>{results.stocksProcessed}</div>
+                  <div className='text-sm text-muted-foreground'>Processed</div>
                 </div>
-                <div className="bg-muted p-4 rounded-lg text-center">
-                  <div className="text-2xl font-bold text-green-600">{results.alertsSent}</div>
-                  <div className="text-sm text-muted-foreground">Alerts Sent</div>
+                <div className='bg-muted p-4 rounded-lg text-center'>
+                  <div className='text-2xl font-bold text-green-600'>{results.alertsSent}</div>
+                  <div className='text-sm text-muted-foreground'>Alerts Sent</div>
                 </div>
-                <div className="bg-muted p-4 rounded-lg text-center">
-                  <div className="text-2xl font-bold text-red-600">{results.errors.length}</div>
-                  <div className="text-sm text-muted-foreground">Errors</div>
+                <div className='bg-muted p-4 rounded-lg text-center'>
+                  <div className='text-2xl font-bold text-red-600'>{results.errors.length}</div>
+                  <div className='text-sm text-muted-foreground'>Errors</div>
                 </div>
               </div>
 
               {results.errors.length > 0 && (
-                <div className="bg-red-50 dark:bg-red-950 border border-red-200 dark:border-red-800 p-4 rounded-lg">
-                  <h4 className="font-semibold mb-2">Errors:</h4>
-                  <ul className="text-sm space-y-1">
+                <div className='bg-red-50 dark:bg-red-950 border border-red-200 dark:border-red-800 p-4 rounded-lg'>
+                  <h4 className='font-semibold mb-2'>Errors:</h4>
+                  <ul className='text-sm space-y-1'>
                     {results.errors.map((error: string, index: number) => (
-                      <li key={index} className="text-red-600 dark:text-red-400">• {error}</li>
+                      <li key={index} className='text-red-600 dark:text-red-400'>
+                        • {error}
+                      </li>
                     ))}
                   </ul>
                 </div>
@@ -296,51 +289,52 @@ export default function BatchJobPage() {
           <CardHeader>
             <CardTitle>Stock Watchlist</CardTitle>
             <CardDescription>
-              Stocks being monitored for volatility stops ({filteredAndSortedStocks.length} of {STOCK_WATCHLIST.length})
+              Stocks being monitored for volatility stops ({filteredAndSortedStocks.length} of{' '}
+              {STOCK_WATCHLIST.length})
             </CardDescription>
           </CardHeader>
           <CardContent>
-            <div className="mb-4">
-              <div className="relative">
-                <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-muted-foreground w-4 h-4" />
+            <div className='mb-4'>
+              <div className='relative'>
+                <Search className='absolute left-3 top-1/2 transform -translate-y-1/2 text-muted-foreground w-4 h-4' />
                 <Input
-                  placeholder="Search by symbol or name..."
+                  placeholder='Search by symbol or name...'
                   value={searchQuery}
                   onChange={(e) => setSearchQuery(e.target.value)}
-                  className="pl-10"
+                  className='pl-10'
                 />
               </div>
             </div>
-            <div className="overflow-auto max-h-96">
+            <div className='overflow-auto max-h-96'>
               <Table>
                 <TableHeader>
                   <TableRow>
-                    <TableHead 
-                      className="cursor-pointer hover:bg-muted"
+                    <TableHead
+                      className='cursor-pointer hover:bg-muted'
                       onClick={() => handleSort('symbol')}
                     >
                       Symbol {getSortIcon('symbol')}
                     </TableHead>
-                    <TableHead 
-                      className="cursor-pointer hover:bg-muted"
+                    <TableHead
+                      className='cursor-pointer hover:bg-muted'
                       onClick={() => handleSort('name')}
                     >
                       Name {getSortIcon('name')}
                     </TableHead>
-                    <TableHead 
-                      className="text-right cursor-pointer hover:bg-muted"
+                    <TableHead
+                      className='text-right cursor-pointer hover:bg-muted'
                       onClick={() => handleSort('targetPrice')}
                     >
                       Target Price {getSortIcon('targetPrice')}
                     </TableHead>
-                    <TableHead 
-                      className="text-right cursor-pointer hover:bg-muted"
+                    <TableHead
+                      className='text-right cursor-pointer hover:bg-muted'
                       onClick={() => handleSort('atrPeriod')}
                     >
                       ATR Period {getSortIcon('atrPeriod')}
                     </TableHead>
-                    <TableHead 
-                      className="text-right cursor-pointer hover:bg-muted"
+                    <TableHead
+                      className='text-right cursor-pointer hover:bg-muted'
                       onClick={() => handleSort('atrMultiplier')}
                     >
                       Multiplier {getSortIcon('atrMultiplier')}
@@ -350,24 +344,20 @@ export default function BatchJobPage() {
                 <TableBody>
                   {filteredAndSortedStocks.length === 0 ? (
                     <TableRow>
-                      <TableCell colSpan={5} className="text-center text-muted-foreground py-8">
-                        No stocks found matching "{searchQuery}"
+                      <TableCell colSpan={5} className='text-center text-muted-foreground py-8'>
+                        No stocks found matching &quot;{searchQuery}&quot;
                       </TableCell>
                     </TableRow>
                   ) : (
                     filteredAndSortedStocks.map((stock) => (
                       <TableRow key={stock.symbol}>
-                        <TableCell className="font-bold">{stock.symbol}</TableCell>
+                        <TableCell className='font-bold'>{stock.symbol}</TableCell>
                         <TableCell>{stock.name}</TableCell>
-                        <TableCell className="text-right">
-                          {stock.targetPrice ? formatPrice(stock.targetPrice, stock.symbol) : "—"}
+                        <TableCell className='text-right'>
+                          {stock.targetPrice ? formatPrice(stock.targetPrice, stock.symbol) : '—'}
                         </TableCell>
-                        <TableCell className="text-right">
-                          {stock.atrPeriod || 14}
-                        </TableCell>
-                        <TableCell className="text-right">
-                          {stock.atrMultiplier || 2.0}x
-                        </TableCell>
+                        <TableCell className='text-right'>{stock.atrPeriod || 14}</TableCell>
+                        <TableCell className='text-right'>{stock.atrMultiplier || 2.0}x</TableCell>
                       </TableRow>
                     ))
                   )}

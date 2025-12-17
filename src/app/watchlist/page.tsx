@@ -1,18 +1,31 @@
-"use client";
+'use client';
 
-import { useState, useEffect, useMemo } from "react";
-import { useRouter } from "next/navigation";
-import { Button } from "@/components/ui/button";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
-import { Badge } from "@/components/ui/badge";
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import { useToast } from "@/hooks/use-toast";
-import { US_STOCKS, INDIA_STOCKS, STOCK_WATCHLIST, type WatchlistStock, formatPrice } from "@/lib/constants";
-import { isAuthenticated, getCurrentUser, logout } from "@/lib/auth";
-import Link from "next/link";
-import { Trash2, Plus, Edit2, X, Check, ArrowUpDown, ArrowUp, ArrowDown } from "lucide-react";
+import { useState, useEffect, useMemo, useCallback } from 'react';
+import { useRouter } from 'next/navigation';
+import { Button } from '@/components/ui/button';
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
+import { Input } from '@/components/ui/input';
+import { Label } from '@/components/ui/label';
+import { Badge } from '@/components/ui/badge';
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from '@/components/ui/table';
+import { useToast } from '@/hooks/use-toast';
+import {
+  US_STOCKS,
+  INDIA_STOCKS,
+  STOCK_WATCHLIST,
+  type WatchlistStock,
+  formatPrice,
+} from '@/lib/constants';
+import { isAuthenticated, getCurrentUser, logout } from '@/lib/auth';
+import Link from 'next/link';
+import { Trash2, Plus, Edit2, X, Check, ArrowUpDown, ArrowUp, ArrowDown } from 'lucide-react';
 
 interface StockPriceData {
   price: number;
@@ -24,7 +37,7 @@ type SortDirection = 'asc' | 'desc' | null;
 
 export default function WatchlistManagementPage() {
   const router = useRouter();
-  const [userName, setUserName] = useState("");
+  const [userName, setUserName] = useState('');
   const [usStocks, setUsStocks] = useState<WatchlistStock[]>([]);
   const [indiaStocks, setIndiaStocks] = useState<WatchlistStock[]>([]);
   const [isLoading, setIsLoading] = useState(true);
@@ -39,13 +52,13 @@ export default function WatchlistManagementPage() {
 
   const handleLogout = () => {
     logout();
-    router.push("/login");
+    router.push('/login');
   };
 
   // Form state for adding new stock
   const [newStock, setNewStock] = useState({
-    symbol: "",
-    name: "",
+    symbol: '',
+    name: '',
     targetPrice: 0,
     atrPeriod: 14,
     atrMultiplier: 2.0,
@@ -55,19 +68,15 @@ export default function WatchlistManagementPage() {
   // Edit form state
   const [editForm, setEditForm] = useState<WatchlistStock | null>(null);
 
-  useEffect(() => {
-    loadWatchlist();
-  }, []);
-
   const fetchAllPrices = async (stocks: WatchlistStock[]) => {
     setFetchingPrices(true);
     const newPrices = new Map<string, StockPriceData>();
-    
+
     for (const stock of stocks) {
       try {
         const response = await fetch(`/api/stock/price?symbol=${encodeURIComponent(stock.symbol)}`);
         const data = await response.json();
-        
+
         if (data.success && data.price) {
           newPrices.set(stock.symbol, {
             price: data.price,
@@ -78,17 +87,17 @@ export default function WatchlistManagementPage() {
         console.error(`Failed to fetch price for ${stock.symbol}:`, error);
       }
     }
-    
+
     setStockPrices(newPrices);
     setFetchingPrices(false);
   };
 
-  const loadWatchlist = async () => {
+  const loadWatchlist = useCallback(async () => {
     if (!isAuthenticated()) {
-      router.push("/login");
+      router.push('/login');
       return;
     }
-    
+
     const user = getCurrentUser();
     if (user) {
       setUserName(user.name);
@@ -96,36 +105,40 @@ export default function WatchlistManagementPage() {
 
     setIsLoading(true);
     try {
-      const response = await fetch("/api/watchlist");
+      const response = await fetch('/api/watchlist');
       const data = await response.json();
-      
+
       if (data.success) {
         const allStocks = data.stocks;
         const usFiltered = allStocks.filter((s: WatchlistStock) => s.region === 'US');
         const indiaFiltered = allStocks.filter((s: WatchlistStock) => s.region === 'INDIA');
         setUsStocks(usFiltered);
         setIndiaStocks(indiaFiltered);
-        
+
         // Fetch prices for all stocks
         fetchAllPrices([...usFiltered, ...indiaFiltered]);
       }
     } catch (error) {
       toast({
-        title: "Error Loading Watchlist",
-        description: error instanceof Error ? error.message : "Failed to load stocks",
-        variant: "destructive",
+        title: 'Error Loading Watchlist',
+        description: error instanceof Error ? error.message : 'Failed to load stocks',
+        variant: 'destructive',
       });
     } finally {
       setIsLoading(false);
     }
-  };
+  }, [router, toast]);
+
+  useEffect(() => {
+    loadWatchlist();
+  }, [loadWatchlist]);
 
   const handleAddStock = () => {
     if (!newStock.symbol || !newStock.name) {
       toast({
-        title: "Missing Information",
-        description: "Please provide both symbol and name",
-        variant: "destructive",
+        title: 'Missing Information',
+        description: 'Please provide both symbol and name',
+        variant: 'destructive',
       });
       return;
     }
@@ -144,10 +157,10 @@ export default function WatchlistManagementPage() {
     } else {
       setIndiaStocks([...indiaStocks, stockToAdd]);
     }
-    
+
     setNewStock({
-      symbol: "",
-      name: "",
+      symbol: '',
+      name: '',
       targetPrice: 0,
       atrPeriod: 14,
       atrMultiplier: 2.0,
@@ -156,7 +169,7 @@ export default function WatchlistManagementPage() {
     setIsAddingNew(false);
 
     toast({
-      title: "Stock Added ✅",
+      title: 'Stock Added ✅',
       description: `${stockToAdd.symbol} added to ${newStock.region} watchlist`,
     });
   };
@@ -168,7 +181,7 @@ export default function WatchlistManagementPage() {
       setIndiaStocks(indiaStocks.filter((s) => s.symbol !== symbol));
     }
     toast({
-      title: "Stock Removed 🗑️",
+      title: 'Stock Removed 🗑️',
       description: `${symbol} removed from watchlist`,
     });
   };
@@ -187,12 +200,12 @@ export default function WatchlistManagementPage() {
     } else {
       setIndiaStocks(indiaStocks.map((s) => (s.symbol === editingId ? editForm : s)));
     }
-    
+
     setEditingId(null);
     setEditForm(null);
 
     toast({
-      title: "Stock Updated ✅",
+      title: 'Stock Updated ✅',
       description: `${editForm.symbol} updated successfully`,
     });
   };
@@ -219,50 +232,53 @@ export default function WatchlistManagementPage() {
 
   const getSortIcon = (field: SortField) => {
     if (sortField !== field) {
-      return <ArrowUpDown className="w-4 h-4 ml-1 inline" />;
+      return <ArrowUpDown className='w-4 h-4 ml-1 inline' />;
     }
     if (sortDirection === 'asc') {
-      return <ArrowUp className="w-4 h-4 ml-1 inline" />;
+      return <ArrowUp className='w-4 h-4 ml-1 inline' />;
     }
     if (sortDirection === 'desc') {
-      return <ArrowDown className="w-4 h-4 ml-1 inline" />;
+      return <ArrowDown className='w-4 h-4 ml-1 inline' />;
     }
-    return <ArrowUpDown className="w-4 h-4 ml-1 inline" />;
+    return <ArrowUpDown className='w-4 h-4 ml-1 inline' />;
   };
 
-  const sortStocks = (stocks: WatchlistStock[]) => {
-    if (!sortField || !sortDirection) return stocks;
+  const sortStocks = useCallback(
+    (stocks: WatchlistStock[]) => {
+      if (!sortField || !sortDirection) return stocks;
 
-    return [...stocks].sort((a, b) => {
-      let aValue: any;
-      let bValue: any;
+      return [...stocks].sort((a, b) => {
+        let aValue: any;
+        let bValue: any;
 
-      if (sortField === 'price') {
-        aValue = stockPrices.get(a.symbol)?.price ?? 0;
-        bValue = stockPrices.get(b.symbol)?.price ?? 0;
-      } else {
-        aValue = a[sortField];
-        bValue = b[sortField];
-      }
+        if (sortField === 'price') {
+          aValue = stockPrices.get(a.symbol)?.price ?? 0;
+          bValue = stockPrices.get(b.symbol)?.price ?? 0;
+        } else {
+          aValue = a[sortField];
+          bValue = b[sortField];
+        }
 
-      // Handle undefined values
-      if (aValue === undefined) aValue = 0;
-      if (bValue === undefined) bValue = 0;
+        // Handle undefined values
+        if (aValue === undefined) aValue = 0;
+        if (bValue === undefined) bValue = 0;
 
-      // String comparison
-      if (typeof aValue === 'string') {
-        return sortDirection === 'asc'
-          ? aValue.localeCompare(bValue)
-          : bValue.localeCompare(aValue);
-      }
+        // String comparison
+        if (typeof aValue === 'string') {
+          return sortDirection === 'asc'
+            ? aValue.localeCompare(bValue)
+            : bValue.localeCompare(aValue);
+        }
 
-      // Number comparison
-      return sortDirection === 'asc' ? aValue - bValue : bValue - aValue;
-    });
-  };
+        // Number comparison
+        return sortDirection === 'asc' ? aValue - bValue : bValue - aValue;
+      });
+    },
+    [sortField, sortDirection, stockPrices]
+  );
 
-  const sortedUsStocks = useMemo(() => sortStocks(usStocks), [usStocks, sortField, sortDirection, stockPrices]);
-  const sortedIndiaStocks = useMemo(() => sortStocks(indiaStocks), [indiaStocks, sortField, sortDirection, stockPrices]);
+  const sortedUsStocks = useMemo(() => sortStocks(usStocks), [usStocks, sortStocks]);
+  const sortedIndiaStocks = useMemo(() => sortStocks(indiaStocks), [indiaStocks, sortStocks]);
 
   const totalStocks = usStocks.length + indiaStocks.length;
   const totalWithTargets = [...usStocks, ...indiaStocks].filter((s) => s.targetPrice).length;
@@ -270,55 +286,55 @@ export default function WatchlistManagementPage() {
   const renderStockTable = (stocks: WatchlistStock[], region: 'US' | 'INDIA') => {
     if (stocks.length === 0) {
       return (
-        <div className="text-center py-8 text-muted-foreground">
+        <div className='text-center py-8 text-muted-foreground'>
           No {region} stocks in watchlist. Add your first stock!
         </div>
       );
     }
 
     return (
-      <div className="overflow-x-auto">
+      <div className='overflow-x-auto'>
         <Table>
           <TableHeader>
             <TableRow>
-              <TableHead 
-                className="cursor-pointer hover:bg-muted"
+              <TableHead
+                className='cursor-pointer hover:bg-muted'
                 onClick={() => handleSort('symbol')}
               >
                 Symbol {getSortIcon('symbol')}
               </TableHead>
-              <TableHead 
-                className="cursor-pointer hover:bg-muted"
+              <TableHead
+                className='cursor-pointer hover:bg-muted'
                 onClick={() => handleSort('name')}
               >
                 Name {getSortIcon('name')}
               </TableHead>
-              <TableHead 
-                className="cursor-pointer hover:bg-muted"
+              <TableHead
+                className='cursor-pointer hover:bg-muted'
                 onClick={() => handleSort('targetPrice')}
               >
                 Target Price {getSortIcon('targetPrice')}
               </TableHead>
-              <TableHead 
-                className="cursor-pointer hover:bg-muted"
+              <TableHead
+                className='cursor-pointer hover:bg-muted'
                 onClick={() => handleSort('atrPeriod')}
               >
                 ATR Period {getSortIcon('atrPeriod')}
               </TableHead>
-              <TableHead 
-                className="cursor-pointer hover:bg-muted"
+              <TableHead
+                className='cursor-pointer hover:bg-muted'
                 onClick={() => handleSort('atrMultiplier')}
               >
                 ATR Multiplier {getSortIcon('atrMultiplier')}
               </TableHead>
-              <TableHead 
-                className="cursor-pointer hover:bg-muted"
+              <TableHead
+                className='cursor-pointer hover:bg-muted'
                 onClick={() => handleSort('price')}
               >
                 Current Price {getSortIcon('price')}
               </TableHead>
               <TableHead>Last Updated</TableHead>
-              <TableHead className="text-right">Actions</TableHead>
+              <TableHead className='text-right'>Actions</TableHead>
             </TableRow>
           </TableHeader>
           <TableBody>
@@ -327,34 +343,32 @@ export default function WatchlistManagementPage() {
                 {editingId === stock.symbol && editForm ? (
                   <>
                     <TableCell>
-                      <Badge variant="secondary">{stock.symbol}</Badge>
+                      <Badge variant='secondary'>{stock.symbol}</Badge>
                     </TableCell>
                     <TableCell>
                       <Input
                         value={editForm.name}
-                        onChange={(e) =>
-                          setEditForm({ ...editForm, name: e.target.value })
-                        }
-                        className="w-full"
+                        onChange={(e) => setEditForm({ ...editForm, name: e.target.value })}
+                        className='w-full'
                       />
                     </TableCell>
                     <TableCell>
                       <Input
-                        type="number"
-                        step="0.01"
-                        value={editForm.targetPrice || ""}
+                        type='number'
+                        step='0.01'
+                        value={editForm.targetPrice || ''}
                         onChange={(e) =>
                           setEditForm({
                             ...editForm,
                             targetPrice: parseFloat(e.target.value) || undefined,
                           })
                         }
-                        className="w-28"
+                        className='w-28'
                       />
                     </TableCell>
                     <TableCell>
                       <Input
-                        type="number"
+                        type='number'
                         value={editForm.atrPeriod || 14}
                         onChange={(e) =>
                           setEditForm({
@@ -362,13 +376,13 @@ export default function WatchlistManagementPage() {
                             atrPeriod: parseInt(e.target.value) || 14,
                           })
                         }
-                        className="w-20"
+                        className='w-20'
                       />
                     </TableCell>
                     <TableCell>
                       <Input
-                        type="number"
-                        step="0.1"
+                        type='number'
+                        step='0.1'
                         value={editForm.atrMultiplier || 2.0}
                         onChange={(e) =>
                           setEditForm({
@@ -376,44 +390,36 @@ export default function WatchlistManagementPage() {
                             atrMultiplier: parseFloat(e.target.value) || 2.0,
                           })
                         }
-                        className="w-20"
+                        className='w-20'
                       />
                     </TableCell>
                     <TableCell>
                       {stockPrices.has(stock.symbol) ? (
-                        <div className="text-sm">
-                          <div className="font-semibold">
+                        <div className='text-sm'>
+                          <div className='font-semibold'>
                             {formatPrice(stockPrices.get(stock.symbol)!.price, stock.symbol)}
                           </div>
                         </div>
                       ) : (
-                        <span className="text-muted-foreground">-</span>
+                        <span className='text-muted-foreground'>-</span>
                       )}
                     </TableCell>
                     <TableCell>
                       {stockPrices.has(stock.symbol) ? (
-                        <div className="text-xs text-muted-foreground">
+                        <div className='text-xs text-muted-foreground'>
                           {stockPrices.get(stock.symbol)!.fetchedAt.toLocaleTimeString()}
                         </div>
                       ) : (
-                        <span className="text-muted-foreground">-</span>
+                        <span className='text-muted-foreground'>-</span>
                       )}
                     </TableCell>
-                    <TableCell className="text-right">
-                      <div className="flex gap-1 justify-end">
-                        <Button
-                          size="sm"
-                          variant="default"
-                          onClick={handleSaveEdit}
-                        >
-                          <Check className="w-4 h-4" />
+                    <TableCell className='text-right'>
+                      <div className='flex gap-1 justify-end'>
+                        <Button size='sm' variant='default' onClick={handleSaveEdit}>
+                          <Check className='w-4 h-4' />
                         </Button>
-                        <Button
-                          size="sm"
-                          variant="outline"
-                          onClick={handleCancelEdit}
-                        >
-                          <X className="w-4 h-4" />
+                        <Button size='sm' variant='outline' onClick={handleCancelEdit}>
+                          <X className='w-4 h-4' />
                         </Button>
                       </div>
                     </TableCell>
@@ -421,51 +427,47 @@ export default function WatchlistManagementPage() {
                 ) : (
                   <>
                     <TableCell>
-                      <Badge variant="secondary">{stock.symbol}</Badge>
+                      <Badge variant='secondary'>{stock.symbol}</Badge>
                     </TableCell>
-                    <TableCell className="font-medium">{stock.name}</TableCell>
+                    <TableCell className='font-medium'>{stock.name}</TableCell>
                     <TableCell>
-                      {stock.targetPrice ? formatPrice(stock.targetPrice, stock.symbol) : "-"}
+                      {stock.targetPrice ? formatPrice(stock.targetPrice, stock.symbol) : '-'}
                     </TableCell>
                     <TableCell>{stock.atrPeriod || 14}</TableCell>
                     <TableCell>{(stock.atrMultiplier || 2.0).toFixed(1)}</TableCell>
                     <TableCell>
                       {stockPrices.has(stock.symbol) ? (
-                        <div className="text-sm">
-                          <div className="font-semibold">
+                        <div className='text-sm'>
+                          <div className='font-semibold'>
                             {formatPrice(stockPrices.get(stock.symbol)!.price, stock.symbol)}
                           </div>
                         </div>
                       ) : fetchingPrices ? (
-                        <span className="text-xs text-muted-foreground">Loading...</span>
+                        <span className='text-xs text-muted-foreground'>Loading...</span>
                       ) : (
-                        <span className="text-muted-foreground">-</span>
+                        <span className='text-muted-foreground'>-</span>
                       )}
                     </TableCell>
                     <TableCell>
                       {stockPrices.has(stock.symbol) ? (
-                        <div className="text-xs text-muted-foreground">
+                        <div className='text-xs text-muted-foreground'>
                           {stockPrices.get(stock.symbol)!.fetchedAt.toLocaleTimeString()}
                         </div>
                       ) : (
-                        <span className="text-muted-foreground">-</span>
+                        <span className='text-muted-foreground'>-</span>
                       )}
                     </TableCell>
-                    <TableCell className="text-right">
-                      <div className="flex gap-1 justify-end">
-                        <Button
-                          size="sm"
-                          variant="ghost"
-                          onClick={() => handleEditStock(stock)}
-                        >
-                          <Edit2 className="w-4 h-4" />
+                    <TableCell className='text-right'>
+                      <div className='flex gap-1 justify-end'>
+                        <Button size='sm' variant='ghost' onClick={() => handleEditStock(stock)}>
+                          <Edit2 className='w-4 h-4' />
                         </Button>
                         <Button
-                          size="sm"
-                          variant="ghost"
+                          size='sm'
+                          variant='ghost'
                           onClick={() => handleDeleteStock(stock.symbol, region)}
                         >
-                          <Trash2 className="w-4 h-4 text-red-500" />
+                          <Trash2 className='w-4 h-4 text-red-500' />
                         </Button>
                       </div>
                     </TableCell>
@@ -480,53 +482,49 @@ export default function WatchlistManagementPage() {
   };
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-gray-50 to-gray-100 dark:from-gray-900 dark:to-gray-800 p-8">
-      <div className="max-w-7xl mx-auto">
-        <div className="mb-8 flex justify-between items-center">
+    <div className='min-h-screen bg-gradient-to-br from-gray-50 to-gray-100 dark:from-gray-900 dark:to-gray-800 p-8'>
+      <div className='max-w-7xl mx-auto'>
+        <div className='mb-8 flex justify-between items-center'>
           <div>
-            <h1 className="text-4xl font-bold mb-2">Manage Watchlist</h1>
-            <p className="text-muted-foreground">
+            <h1 className='text-4xl font-bold mb-2'>Manage Watchlist</h1>
+            <p className='text-muted-foreground'>
               Add, edit, or remove stocks from your monitoring list
             </p>
           </div>
-          <div className="flex gap-2 items-center">
-            {userName && (
-              <span className="text-sm text-muted-foreground">
-                Welcome, {userName}
-              </span>
-            )}
-            <Button asChild variant="outline">
-              <Link href="/dashboard">Dashboard</Link>
+          <div className='flex gap-2 items-center'>
+            {userName && <span className='text-sm text-muted-foreground'>Welcome, {userName}</span>}
+            <Button asChild variant='outline'>
+              <Link href='/dashboard'>Dashboard</Link>
             </Button>
-            <Button onClick={handleLogout} variant="destructive">
+            <Button onClick={handleLogout} variant='destructive'>
               Logout
             </Button>
           </div>
         </div>
 
-        <div className="grid gap-6 mb-6">
+        <div className='grid gap-6 mb-6'>
           <Card>
             <CardHeader>
               <CardTitle>Quick Stats</CardTitle>
               <CardDescription>Current watchlist overview</CardDescription>
             </CardHeader>
             <CardContent>
-              <div className="grid md:grid-cols-4 gap-4">
+              <div className='grid md:grid-cols-4 gap-4'>
                 <div>
-                  <div className="text-3xl font-bold">{totalStocks}</div>
-                  <p className="text-sm text-muted-foreground">Total Stocks</p>
+                  <div className='text-3xl font-bold'>{totalStocks}</div>
+                  <p className='text-sm text-muted-foreground'>Total Stocks</p>
                 </div>
                 <div>
-                  <div className="text-3xl font-bold">{usStocks.length}</div>
-                  <p className="text-sm text-muted-foreground">US Stocks</p>
+                  <div className='text-3xl font-bold'>{usStocks.length}</div>
+                  <p className='text-sm text-muted-foreground'>US Stocks</p>
                 </div>
                 <div>
-                  <div className="text-3xl font-bold">{indiaStocks.length}</div>
-                  <p className="text-sm text-muted-foreground">India Stocks</p>
+                  <div className='text-3xl font-bold'>{indiaStocks.length}</div>
+                  <p className='text-sm text-muted-foreground'>India Stocks</p>
                 </div>
                 <div>
-                  <div className="text-3xl font-bold">{totalWithTargets}</div>
-                  <p className="text-sm text-muted-foreground">With Target Price</p>
+                  <div className='text-3xl font-bold'>{totalWithTargets}</div>
+                  <p className='text-sm text-muted-foreground'>With Target Price</p>
                 </div>
               </div>
             </CardContent>
@@ -539,60 +537,60 @@ export default function WatchlistManagementPage() {
                 <CardDescription>Configure stock monitoring parameters</CardDescription>
               </CardHeader>
               <CardContent>
-                <div className="grid md:grid-cols-2 gap-4">
+                <div className='grid md:grid-cols-2 gap-4'>
                   <div>
-                    <Label htmlFor="region">Region *</Label>
+                    <Label htmlFor='region'>Region *</Label>
                     <select
-                      id="region"
+                      id='region'
                       value={newStock.region}
                       onChange={(e) =>
                         setNewStock({ ...newStock, region: e.target.value as 'US' | 'INDIA' })
                       }
-                      className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
+                      className='flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2'
                     >
-                      <option value="US">🇺🇸 United States</option>
-                      <option value="INDIA">🇮🇳 India</option>
+                      <option value='US'>🇺🇸 United States</option>
+                      <option value='INDIA'>🇮🇳 India</option>
                     </select>
                   </div>
                   <div>
-                    <Label htmlFor="symbol">Stock Symbol *</Label>
+                    <Label htmlFor='symbol'>Stock Symbol *</Label>
                     <Input
-                      id="symbol"
+                      id='symbol'
                       placeholder={newStock.region === 'US' ? 'AAPL' : 'RELIANCE.NS'}
                       value={newStock.symbol}
                       onChange={(e) =>
                         setNewStock({ ...newStock, symbol: e.target.value.toUpperCase() })
                       }
-                      className="uppercase"
+                      className='uppercase'
                     />
                   </div>
                   <div>
-                    <Label htmlFor="name">Company Name *</Label>
+                    <Label htmlFor='name'>Company Name *</Label>
                     <Input
-                      id="name"
-                      placeholder="Apple Inc."
+                      id='name'
+                      placeholder='Apple Inc.'
                       value={newStock.name}
                       onChange={(e) => setNewStock({ ...newStock, name: e.target.value })}
                     />
                   </div>
                   <div>
-                    <Label htmlFor="targetPrice">Target Price (Optional)</Label>
+                    <Label htmlFor='targetPrice'>Target Price (Optional)</Label>
                     <Input
-                      id="targetPrice"
-                      type="number"
-                      step="0.01"
-                      placeholder="150.00"
-                      value={newStock.targetPrice || ""}
+                      id='targetPrice'
+                      type='number'
+                      step='0.01'
+                      placeholder='150.00'
+                      value={newStock.targetPrice || ''}
                       onChange={(e) =>
                         setNewStock({ ...newStock, targetPrice: parseFloat(e.target.value) || 0 })
                       }
                     />
                   </div>
                   <div>
-                    <Label htmlFor="atrPeriod">ATR Period</Label>
+                    <Label htmlFor='atrPeriod'>ATR Period</Label>
                     <Input
-                      id="atrPeriod"
-                      type="number"
+                      id='atrPeriod'
+                      type='number'
                       value={newStock.atrPeriod}
                       onChange={(e) =>
                         setNewStock({ ...newStock, atrPeriod: parseInt(e.target.value) || 14 })
@@ -600,11 +598,11 @@ export default function WatchlistManagementPage() {
                     />
                   </div>
                   <div>
-                    <Label htmlFor="atrMultiplier">ATR Multiplier</Label>
+                    <Label htmlFor='atrMultiplier'>ATR Multiplier</Label>
                     <Input
-                      id="atrMultiplier"
-                      type="number"
-                      step="0.1"
+                      id='atrMultiplier'
+                      type='number'
+                      step='0.1'
                       value={newStock.atrMultiplier}
                       onChange={(e) =>
                         setNewStock({
@@ -615,13 +613,13 @@ export default function WatchlistManagementPage() {
                     />
                   </div>
                 </div>
-                <div className="flex gap-2 mt-4">
+                <div className='flex gap-2 mt-4'>
                   <Button onClick={handleAddStock}>
-                    <Check className="w-4 h-4 mr-2" />
+                    <Check className='w-4 h-4 mr-2' />
                     Add Stock
                   </Button>
-                  <Button variant="outline" onClick={() => setIsAddingNew(false)}>
-                    <X className="w-4 h-4 mr-2" />
+                  <Button variant='outline' onClick={() => setIsAddingNew(false)}>
+                    <X className='w-4 h-4 mr-2' />
                     Cancel
                   </Button>
                 </div>
@@ -631,23 +629,29 @@ export default function WatchlistManagementPage() {
 
           {/* US Stocks Section */}
           <Card>
-            <CardHeader className="flex flex-row items-center justify-between">
+            <CardHeader className='flex flex-row items-center justify-between'>
               <div>
                 <CardTitle>🇺🇸 US Stocks</CardTitle>
                 <CardDescription>
-                  {usStocks.length} US stock{usStocks.length !== 1 ? "s" : ""} being monitored
+                  {usStocks.length} US stock{usStocks.length !== 1 ? 's' : ''} being monitored
                 </CardDescription>
               </div>
               {!isAddingNew && (
-                <Button onClick={() => { setAddingRegion('US'); setIsAddingNew(true); setNewStock({ ...newStock, region: 'US' }); }}>
-                  <Plus className="w-4 h-4 mr-2" />
+                <Button
+                  onClick={() => {
+                    setAddingRegion('US');
+                    setIsAddingNew(true);
+                    setNewStock({ ...newStock, region: 'US' });
+                  }}
+                >
+                  <Plus className='w-4 h-4 mr-2' />
                   Add US Stock
                 </Button>
               )}
             </CardHeader>
             <CardContent>
               {isLoading ? (
-                <div className="text-center py-8 text-muted-foreground">Loading...</div>
+                <div className='text-center py-8 text-muted-foreground'>Loading...</div>
               ) : (
                 renderStockTable(sortedUsStocks, 'US')
               )}
@@ -656,23 +660,30 @@ export default function WatchlistManagementPage() {
 
           {/* India Stocks Section */}
           <Card>
-            <CardHeader className="flex flex-row items-center justify-between">
+            <CardHeader className='flex flex-row items-center justify-between'>
               <div>
                 <CardTitle>🇮🇳 India Stocks</CardTitle>
                 <CardDescription>
-                  {indiaStocks.length} Indian stock{indiaStocks.length !== 1 ? "s" : ""} being monitored
+                  {indiaStocks.length} Indian stock{indiaStocks.length !== 1 ? 's' : ''} being
+                  monitored
                 </CardDescription>
               </div>
               {!isAddingNew && (
-                <Button onClick={() => { setAddingRegion('INDIA'); setIsAddingNew(true); setNewStock({ ...newStock, region: 'INDIA' }); }}>
-                  <Plus className="w-4 h-4 mr-2" />
+                <Button
+                  onClick={() => {
+                    setAddingRegion('INDIA');
+                    setIsAddingNew(true);
+                    setNewStock({ ...newStock, region: 'INDIA' });
+                  }}
+                >
+                  <Plus className='w-4 h-4 mr-2' />
                   Add India Stock
                 </Button>
               )}
             </CardHeader>
             <CardContent>
               {isLoading ? (
-                <div className="text-center py-8 text-muted-foreground">Loading...</div>
+                <div className='text-center py-8 text-muted-foreground'>Loading...</div>
               ) : (
                 renderStockTable(sortedIndiaStocks, 'INDIA')
               )}
@@ -685,12 +696,24 @@ export default function WatchlistManagementPage() {
             <CardTitle>💡 Tips</CardTitle>
           </CardHeader>
           <CardContent>
-            <ul className="space-y-2 text-sm text-muted-foreground">
-              <li>• <strong>US Stocks:</strong> Use standard symbols (AAPL, MSFT, GOOGL)</li>
-              <li>• <strong>Indian Stocks:</strong> Add .NS suffix for NSE stocks (RELIANCE.NS, TCS.NS)</li>
-              <li>• <strong>ATR Period:</strong> Default is 14 days, suitable for most stocks</li>
-              <li>• <strong>ATR Multiplier:</strong> Higher values (2.5-3.0) for volatile stocks, lower (1.5-2.0) for stable ones</li>
-              <li>• <strong>Target Price:</strong> Optional - set if you have a specific exit target</li>
+            <ul className='space-y-2 text-sm text-muted-foreground'>
+              <li>
+                • <strong>US Stocks:</strong> Use standard symbols (AAPL, MSFT, GOOGL)
+              </li>
+              <li>
+                • <strong>Indian Stocks:</strong> Add .NS suffix for NSE stocks (RELIANCE.NS,
+                TCS.NS)
+              </li>
+              <li>
+                • <strong>ATR Period:</strong> Default is 14 days, suitable for most stocks
+              </li>
+              <li>
+                • <strong>ATR Multiplier:</strong> Higher values (2.5-3.0) for volatile stocks,
+                lower (1.5-2.0) for stable ones
+              </li>
+              <li>
+                • <strong>Target Price:</strong> Optional - set if you have a specific exit target
+              </li>
               <li>• Changes are saved locally - batch job will use updated settings on next run</li>
             </ul>
           </CardContent>

@@ -24,7 +24,7 @@ export default function StockAnalyzer() {
       router.push("/login");
       return;
     }
-    
+
     const user = getCurrentUser();
     if (user) {
       setUserName(user.name);
@@ -101,7 +101,7 @@ export default function StockAnalyzer() {
                     </p>
                   </div>
                 </div>
-                
+
                 <div className="flex items-start gap-3">
                   <Badge className="mt-1">2</Badge>
                   <div>
@@ -111,7 +111,7 @@ export default function StockAnalyzer() {
                     </p>
                   </div>
                 </div>
-                
+
                 <div className="flex items-start gap-3">
                   <Badge className="mt-1">3</Badge>
                   <div>
@@ -161,7 +161,7 @@ export default function StockAnalyzer() {
               </Button>
 
               <div className="pt-4 border-t">
-                <p className="text-sm font-medium mb-2">What you'll receive:</p>
+                <p className="text-sm font-medium mb-2">What you will receive:</p>
                 <ul className="text-sm text-muted-foreground space-y-1">
                   <li>✅ Stop loss triggered alerts</li>
                   <li>✅ High volatility warnings</li>
@@ -205,7 +205,7 @@ export default function StockAnalyzer() {
                 ))}
               </div>
             </div>
-            
+
             <div className="mb-6">
               <h3 className="font-semibold mb-3 flex items-center gap-2">
                 <span>🇮🇳</span> India Stocks ({INDIA_STOCKS.length})

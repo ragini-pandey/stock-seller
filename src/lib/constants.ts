@@ -10,7 +10,7 @@ export interface WatchlistStock {
   atrMultiplier?: number;
   notifyEmail?: string;
   notifyPhone?: string;
-  region?: 'US' | 'INDIA';
+  region?: "US" | "INDIA";
 }
 
 /**
@@ -23,133 +23,133 @@ export const US_STOCKS: WatchlistStock[] = [
     name: "Advanced Micro Devices, Inc.",
     atrPeriod: 14,
     atrMultiplier: 2.0,
-    region: 'US',
+    region: "US",
   },
   {
     symbol: "ASTS",
     name: "AST & Science, LLC",
     atrPeriod: 14,
     atrMultiplier: 2.5,
-    region: 'US',
+    region: "US",
   },
   {
     symbol: "CCCX",
     name: "Churchill Capital Corp X-A",
     atrPeriod: 14,
     atrMultiplier: 2.0,
-    region: 'US',
+    region: "US",
   },
   {
     symbol: "CGNX",
     name: "Cognex Corporation",
     atrPeriod: 14,
     atrMultiplier: 2.0,
-    region: 'US',
+    region: "US",
   },
   {
     symbol: "CRDL",
     name: "Cardiol Therapeutics Inc",
     atrPeriod: 14,
     atrMultiplier: 2.5,
-    region: 'US',
+    region: "US",
   },
   {
     symbol: "IMSR",
     name: "Terrestrial Energy Inc",
     atrPeriod: 14,
     atrMultiplier: 2.5,
-    region: 'US',
+    region: "US",
   },
   {
     symbol: "LAC",
     name: "Lithium Americas Corp.",
     atrPeriod: 14,
     atrMultiplier: 2.0,
-    region: 'US',
+    region: "US",
   },
   {
     symbol: "MARA",
     name: "Marathon Digital Holdings Inc",
     atrPeriod: 14,
     atrMultiplier: 2.5,
-    region: 'US',
+    region: "US",
   },
   {
     symbol: "META",
     name: "Meta Platforms Inc",
     atrPeriod: 14,
     atrMultiplier: 2.0,
-    region: 'US',
+    region: "US",
   },
   {
     symbol: "MP",
     name: "MP Materials Corp.",
     atrPeriod: 14,
     atrMultiplier: 2.0,
-    region: 'US',
+    region: "US",
   },
   {
     symbol: "NBIS",
     name: "Nebius Group N.V.",
     atrPeriod: 14,
     atrMultiplier: 2.5,
-    region: 'US',
+    region: "US",
   },
   {
     symbol: "NVDA",
     name: "NVIDIA Corporation",
     atrPeriod: 14,
     atrMultiplier: 2.0,
-    region: 'US',
+    region: "US",
   },
   {
     symbol: "OPEN",
     name: "Opendoor Technologies Inc",
     atrPeriod: 14,
     atrMultiplier: 2.5,
-    region: 'US',
+    region: "US",
   },
   {
     symbol: "PYPL",
     name: "PayPal Holdings, Inc.",
     atrPeriod: 14,
     atrMultiplier: 2.0,
-    region: 'US',
+    region: "US",
   },
   {
     symbol: "RBRK",
     name: "Rubrik Inc.",
     atrPeriod: 14,
     atrMultiplier: 2.5,
-    region: 'US',
+    region: "US",
   },
   {
     symbol: "SMCI",
     name: "Super Micro Computer, Inc.",
     atrPeriod: 14,
     atrMultiplier: 2.5,
-    region: 'US',
+    region: "US",
   },
   {
     symbol: "TMQ",
     name: "Trilogy Metals Inc",
     atrPeriod: 14,
     atrMultiplier: 2.0,
-    region: 'US',
+    region: "US",
   },
   {
     symbol: "UMAC",
     name: "Unusual Machines Inc",
     atrPeriod: 14,
     atrMultiplier: 2.5,
-    region: 'US',
+    region: "US",
   },
   {
     symbol: "WULF",
     name: "Terawulf Inc",
     atrPeriod: 14,
     atrMultiplier: 2.5,
-    region: 'US',
+    region: "US",
   },
 ];
 
@@ -165,10 +165,7 @@ export const INDIA_STOCKS: WatchlistStock[] = [
  * Combined Stock Watchlist
  * All stocks being monitored
  */
-export const STOCK_WATCHLIST: WatchlistStock[] = [
-  ...US_STOCKS,
-  ...INDIA_STOCKS,
-];
+export const STOCK_WATCHLIST: WatchlistStock[] = [...US_STOCKS, ...INDIA_STOCKS];
 
 /**
  * Batch Job Configuration
@@ -187,8 +184,8 @@ export const BATCH_CONFIG = {
   // Volatility thresholds for alerts
   THRESHOLDS: {
     HIGH_VOLATILITY_PERCENT: 10, // Alert if stop is >10% away
-    LOW_VOLATILITY_PERCENT: 3,   // Alert if stop is <3% away
-    STOP_TRIGGERED_PERCENT: 0,   // Alert if price hits stop loss
+    LOW_VOLATILITY_PERCENT: 3, // Alert if stop is <3% away
+    STOP_TRIGGERED_PERCENT: 0, // Alert if price hits stop loss
   },
 
   // Rate limiting for API calls
@@ -243,10 +240,10 @@ export const NOTIFICATION_CONFIG = {
  * Alert Conditions
  */
 export enum AlertCondition {
-  STOP_TRIGGERED = "STOP_TRIGGERED",         // Price hit stop loss
-  HIGH_VOLATILITY = "HIGH_VOLATILITY",       // Volatility increased significantly
-  LOW_VOLATILITY = "LOW_VOLATILITY",         // Volatility decreased significantly
-  APPROACHING_STOP = "APPROACHING_STOP",     // Price near stop loss
+  STOP_TRIGGERED = "STOP_TRIGGERED", // Price hit stop loss
+  HIGH_VOLATILITY = "HIGH_VOLATILITY", // Volatility increased significantly
+  LOW_VOLATILITY = "LOW_VOLATILITY", // Volatility decreased significantly
+  APPROACHING_STOP = "APPROACHING_STOP", // Price near stop loss
 }
 
 /**
@@ -266,7 +263,7 @@ export interface BatchJobStatus {
  */
 export function formatPrice(price: number, symbol: string): string {
   // Check if it's an Indian stock (ends with .NS or .BSE)
-  const isIndianStock = symbol.endsWith('.NS') || symbol.endsWith('.BSE') || symbol.endsWith('.BO');
+  const isIndianStock = symbol.endsWith(".NS") || symbol.endsWith(".BSE") || symbol.endsWith(".BO");
 
   if (isIndianStock) {
     return `₹${price.toFixed(2)}`;
@@ -279,6 +276,6 @@ export function formatPrice(price: number, symbol: string): string {
  * Get currency symbol based on stock region
  */
 export function getCurrencySymbol(symbol: string): string {
-  const isIndianStock = symbol.endsWith('.NS') || symbol.endsWith('.BSE') || symbol.endsWith('.BO');
-  return isIndianStock ? '₹' : '$';
+  const isIndianStock = symbol.endsWith(".NS") || symbol.endsWith(".BSE") || symbol.endsWith(".BO");
+  return isIndianStock ? "₹" : "$";
 }

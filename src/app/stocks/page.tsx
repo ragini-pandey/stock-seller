@@ -202,7 +202,7 @@ export default function StockAnalyzer() {
                 <span>🇮🇳</span> India Stocks ({INDIA_STOCKS.length})
               </h3>
               <div className="grid grid-cols-2 md:grid-cols-5 gap-3">
-                {INDIA_STOCKS.map((stock) => (
+                {INDIA_STOCKS.map((stock: any) => (
                   <div
                     key={stock.symbol}
                     className="p-4 border rounded-lg hover:bg-muted/50 transition-colors"

@@ -15,17 +15,61 @@ import {
 } from "@/components/ui/table";
 import { Input } from "@/components/ui/input";
 import { useToast } from "@/hooks/use-toast";
-import { STOCK_WATCHLIST, formatPrice, type WatchlistStock } from "@/lib/constants";
-import { isAuthenticated, getCurrentUser, logout } from "@/lib/auth";
-import Link from "next/link";
-import { ArrowUpDown, ArrowUp, ArrowDown, Search } from "lucide-react";
+import { STOCK_WATCHLIST, formatPrice } from "@/lib/constants";
+import { isAuthenticated, getCurrentUser } from "@/lib/auth";
+import { HoverCard, HoverCardContent, HoverCardTrigger } from "@/components/ui/hover-card";
+import {
+  ArrowUpDown,
+  ArrowUp,
+  ArrowDown,
+  Search,
+  TrendingUp,
+  List,
+  Activity,
+  Play,
+  Clock,
+} from "lucide-react";
 
-type SortField = "symbol" | "name" | "targetPrice" | "atrPeriod" | "atrMultiplier";
+interface StockPriceData {
+  price: number;
+  fetchedAt: Date;
+}
+
+interface Recommendation {
+  buy: number;
+  hold: number;
+  period: string;
+  sell: number;
+  strongBuy: number;
+  strongSell: number;
+  symbol: string;
+}
+
+type SortField =
+  | "symbol"
+  | "name"
+  | "targetPrice"
+  | "atrPeriod"
+  | "atrMultiplier"
+  | "currentPrice"
+  | "stopLoss";
 type SortDirection = "asc" | "desc" | null;
+
+interface VolatilityData {
+  symbol: string;
+  currentPrice: number;
+  atr: number;
+  volatilityStop: {
+    stopLoss: number;
+    stopLossPercentage: number;
+    atr: number;
+    recommendation: string;
+  };
+  calculatedAt?: string;
+}
 
 export default function BatchJobPage() {
   const router = useRouter();
-  const [userName, setUserName] = useState("");
   const [isRunning, setIsRunning] = useState(false);
   const [lastRun, setLastRun] = useState<string | null>(null);
   const [results, setResults] = useState<any>(null);
@@ -33,17 +77,16 @@ export default function BatchJobPage() {
   const [searchQuery, setSearchQuery] = useState("");
   const [sortField, setSortField] = useState<SortField | null>(null);
   const [sortDirection, setSortDirection] = useState<SortDirection>(null);
-  const indianStocks = STOCK_WATCHLIST.filter((stock) => stock.region === "INDIA");
+  const [volatilityData, setVolatilityData] = useState<Map<string, VolatilityData>>(new Map());
+  const [isCalculating, setIsCalculating] = useState(false);
+  const [stockPrices, setStockPrices] = useState<Map<string, StockPriceData>>(new Map());
+  const [recommendations, setRecommendations] = useState<Map<string, Recommendation>>(new Map());
   const { toast } = useToast();
 
   useEffect(() => {
     if (!isAuthenticated()) {
       router.push("/login");
       return;
-    }
-    const user = getCurrentUser();
-    if (user) {
-      setUserName(user.name);
     }
 
     // Fetch market status from API
@@ -60,15 +103,67 @@ export default function BatchJobPage() {
     };
 
     updateMarketStatus();
-    // Refresh market status every minute
-    const interval = setInterval(updateMarketStatus, 60000);
+    // Refresh market status every 5 minutes
+    const interval = setInterval(updateMarketStatus, 300000);
     return () => clearInterval(interval);
   }, [router]);
 
-  const handleLogout = () => {
-    logout();
-    router.push("/login");
-  };
+  // Fetch stock prices on page load
+  useEffect(() => {
+    const fetchStockPrices = async () => {
+      const newPrices = new Map<string, StockPriceData>();
+
+      for (const stock of STOCK_WATCHLIST) {
+        try {
+          const response = await fetch(`/api/stock/price?symbol=${stock.symbol}`);
+          const data = await response.json();
+
+          if (data.success) {
+            newPrices.set(stock.symbol, {
+              price: data.price,
+              fetchedAt: new Date(data.fetchedAt),
+            });
+          }
+        } catch (error) {
+          console.error(`Failed to fetch price for ${stock.symbol}:`, error);
+        }
+      }
+
+      setStockPrices(newPrices);
+    };
+
+    fetchStockPrices();
+  }, []);
+
+  // Fetch analyst recommendations on page load
+  useEffect(() => {
+    const fetchRecommendations = async () => {
+      const newRecommendations = new Map<string, Recommendation>();
+
+      for (const stock of STOCK_WATCHLIST) {
+        // Only fetch for US stocks (Finnhub supports US stocks)
+        if (stock.region === "US") {
+          try {
+            const response = await fetch(
+              `/api/stock/recommendations?symbol=${encodeURIComponent(stock.symbol)}`
+            );
+            const data = await response.json();
+
+            if (data.success && data.recommendations && data.recommendations.length > 0) {
+              // Use the most recent recommendation (first item)
+              newRecommendations.set(stock.symbol, data.recommendations[0]);
+            }
+          } catch (error) {
+            console.error(`Failed to fetch recommendations for ${stock.symbol}:`, error);
+          }
+        }
+      }
+
+      setRecommendations(newRecommendations);
+    };
+
+    fetchRecommendations();
+  }, []);
 
   const handleSort = (field: SortField) => {
     if (sortField === field) {
@@ -98,8 +193,97 @@ export default function BatchJobPage() {
     return <ArrowUpDown className="w-4 h-4 ml-1 inline" />;
   };
 
-  const filteredAndSortedStocks = useMemo(() => {
-    let filtered = STOCK_WATCHLIST;
+  const getRecommendationBadge = (rec: Recommendation) => {
+    const total = rec.strongBuy + rec.buy + rec.hold + rec.sell + rec.strongSell;
+    const bullish = rec.strongBuy + rec.buy;
+    const percentage = (bullish / total) * 100;
+    const period = new Date(rec.period).toLocaleDateString("en-US", {
+      month: "short",
+      year: "numeric",
+    });
+
+    let badgeClass = "";
+    let badgeText = "";
+
+    if (percentage >= 70) {
+      badgeClass = "bg-green-600 text-white";
+      badgeText = "Strong Buy";
+    } else if (percentage >= 55) {
+      badgeClass = "bg-green-500 text-white";
+      badgeText = "Buy";
+    } else if (percentage >= 45) {
+      badgeClass = "bg-yellow-500 text-black";
+      badgeText = "Hold";
+    } else if (percentage >= 30) {
+      badgeClass = "bg-orange-500 text-white";
+      badgeText = "Sell";
+    } else {
+      badgeClass = "bg-red-600 text-white";
+      badgeText = "Strong Sell";
+    }
+
+    return (
+      <HoverCard>
+        <HoverCardTrigger asChild>
+          <Badge className={`${badgeClass} cursor-help`}>{badgeText}</Badge>
+        </HoverCardTrigger>
+        <HoverCardContent className="w-80">
+          <div className="space-y-2">
+            <h4 className="text-sm font-semibold">{period} Analyst Recommendations</h4>
+            <div className="text-xs text-muted-foreground">
+              {total} analysts covering this stock
+            </div>
+            <div className="space-y-1.5 pt-2">
+              <div className="flex justify-between items-center">
+                <span className="text-sm flex items-center gap-2">
+                  <span className="w-3 h-3 rounded-full bg-green-600"></span>
+                  Strong Buy
+                </span>
+                <span className="font-semibold">{rec.strongBuy}</span>
+              </div>
+              <div className="flex justify-between items-center">
+                <span className="text-sm flex items-center gap-2">
+                  <span className="w-3 h-3 rounded-full bg-green-500"></span>
+                  Buy
+                </span>
+                <span className="font-semibold">{rec.buy}</span>
+              </div>
+              <div className="flex justify-between items-center">
+                <span className="text-sm flex items-center gap-2">
+                  <span className="w-3 h-3 rounded-full bg-yellow-500"></span>
+                  Hold
+                </span>
+                <span className="font-semibold">{rec.hold}</span>
+              </div>
+              <div className="flex justify-between items-center">
+                <span className="text-sm flex items-center gap-2">
+                  <span className="w-3 h-3 rounded-full bg-orange-500"></span>
+                  Sell
+                </span>
+                <span className="font-semibold">{rec.sell}</span>
+              </div>
+              <div className="flex justify-between items-center">
+                <span className="text-sm flex items-center gap-2">
+                  <span className="w-3 h-3 rounded-full bg-red-600"></span>
+                  Strong Sell
+                </span>
+                <span className="font-semibold">{rec.strongSell}</span>
+              </div>
+            </div>
+            <div className="pt-2 mt-2 border-t">
+              <div className="flex justify-between items-center">
+                <span className="text-sm font-medium">Bullish Sentiment</span>
+                <span className="font-bold text-lg">{percentage.toFixed(0)}%</span>
+              </div>
+            </div>
+          </div>
+        </HoverCardContent>
+      </HoverCard>
+    );
+  };
+
+  const filterAndSortStocks = (stocks: typeof STOCK_WATCHLIST) => {
+    let filtered = stocks;
 
     // Apply search filter
     if (searchQuery) {
@@ -113,8 +297,31 @@ export default function BatchJobPage() {
     // Apply sorting
     if (sortField && sortDirection) {
       filtered = [...filtered].sort((a, b) => {
-        let aValue: any = a[sortField];
-        let bValue: any = b[sortField];
+        let aValue: string | number;
+        let bValue: string | number;
+
+        // Get values based on sortField
+        switch (sortField) {
+          case "symbol":
+          case "name":
+            aValue = a[sortField];
+            bValue = b[sortField];
+            break;
+          case "targetPrice":
+          case "atrPeriod":
+          case "atrMultiplier":
+            aValue = a[sortField] ?? 0;
+            bValue = b[sortField] ?? 0;
+            break;
+          case "currentPrice":
+          case "stopLoss":
+            aValue = 0;
+            bValue = 0;
+            break;
+          default:
+            aValue = 0;
+            bValue = 0;
+        }
 
         // Handle undefined values
         if (aValue === undefined) aValue = 0;
@@ -123,75 +330,186 @@ export default function BatchJobPage() {
         // String comparison
         if (typeof aValue === "string") {
           return sortDirection === "asc"
-            ? aValue.localeCompare(bValue)
-            : bValue.localeCompare(aValue);
+            ? aValue.localeCompare(bValue as string)
+            : (bValue as string).localeCompare(aValue);
         }
 
         // Number comparison
-        return sortDirection === "asc" ? aValue - bValue : bValue - aValue;
+        return sortDirection === "asc"
+          ? (aValue as number) - (bValue as number)
+          : (bValue as number) - (aValue as number);
       });
     }
 
     return filtered;
-  }, [searchQuery, sortField, sortDirection]);
+  };
 
-  const runBatchJob = async () => {
-    setIsRunning(true);
+  const usStocks = useMemo(() => {
+    return STOCK_WATCHLIST.filter((stock) => stock.region === "US");
+  }, []);
+
+  const indiaStocks = useMemo(() => {
+    return STOCK_WATCHLIST.filter((stock) => stock.region === "INDIA");
+  }, []);
+
+  const filteredUsStocks = useMemo(() => {
+    return filterAndSortStocks(usStocks);
+  }, [usStocks, searchQuery, sortField, sortDirection]);
+
+  const filteredIndiaStocks = useMemo(() => {
+    return filterAndSortStocks(indiaStocks);
+  }, [indiaStocks, searchQuery, sortField, sortDirection]);
+
+  const calculateVolatilityStops = async () => {
+    setIsCalculating(true);
     toast({
-      title: "Starting Batch Job",
+      title: "Calculating Volatility Stops",
       description: `Processing ${STOCK_WATCHLIST.length} stocks...`,
     });
 
     try {
-      const response = await fetch("/api/batch/run", {
+      const user = getCurrentUser();
+      if (!user?.phoneNumber) {
+        toast({
+          title: "Error",
+          description: "User phone number not found. Please log in again.",
+          variant: "destructive",
+        });
+        return;
+      }
+
+      const stocksToProcess = STOCK_WATCHLIST.map((stock) => ({
+        symbol: stock.symbol,
+        atrPeriod: stock.atrPeriod || 14,
+        atrMultiplier: stock.atrMultiplier || 2.0,
+      }));
+
+      const response = await fetch("/api/stock/volatility", {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
         },
-        body: JSON.stringify({ manual: true }),
+        body: JSON.stringify({
+          stocks: stocksToProcess,
+          phoneNumber: user.phoneNumber,
+        }),
       });
 
       const data = await response.json();
 
       if (data.success) {
-        setResults(data.status);
+        const newVolatilityData = new Map<string, VolatilityData>();
+        const newPrices = new Map<string, StockPriceData>();
+        data.results.forEach((result: any) => {
+          if (result.success) {
+            newVolatilityData.set(result.symbol, result);
+            // Store price data from volatility calculation
+            newPrices.set(result.symbol, {
+              price: result.currentPrice,
+              fetchedAt: new Date(),
+            });
+          }
+        });
+        setVolatilityData(newVolatilityData);
+        setStockPrices(newPrices);
         setLastRun(new Date().toLocaleString());
+
+        // Show alert notification if any were sent
+        if (data.alertsSent > 0) {
+          toast({
+            title: "SELL Alerts Sent",
+            description: `Sent WhatsApp notifications for ${data.alertsSent} SELL recommendation(s)`,
+          });
+        }
+
+        // Fetch recommendations for US stocks
+        fetchRecommendations(STOCK_WATCHLIST.filter((s) => s.region === "US"));
+
         toast({
-          title: "Batch Job Complete! 🎉",
-          description: `Processed ${data.status.stocksProcessed} stocks, sent ${data.status.alertsSent} alerts`,
+          title: "Volatility Calculation Complete! 🎉",
+          description: `Processed ${data.totalSuccessful} of ${data.totalProcessed} stocks`,
         });
       } else {
-        throw new Error(data.error || "Batch job failed");
+        throw new Error(data.error || "Volatility calculation failed");
       }
     } catch (error) {
       toast({
-        title: "Batch Job Failed",
+        title: "Calculation Failed",
         description: error instanceof Error ? error.message : "Unknown error",
         variant: "destructive",
       });
     } finally {
-      setIsRunning(false);
+      setIsCalculating(false);
     }
   };
+
+  const fetchRecommendations = async (stocks: typeof STOCK_WATCHLIST) => {
+    const newRecs = new Map<string, Recommendation>();
+
+    for (const stock of stocks) {
+      // Only fetch for US stocks (Finnhub supports US stocks)
+      if (stock.region === "US") {
+        try {
+          const response = await fetch(
+            `/api/stock/recommendations?symbol=${encodeURIComponent(stock.symbol)}`
+          );
+          const data = await response.json();
+
+          if (data.success && data.recommendations.length > 0) {
+            // Use the most recent recommendation
+            newRecs.set(stock.symbol, data.recommendations[0]);
+          }
+        } catch (error) {
+          console.error(`Failed to fetch recommendations for ${stock.symbol}:`, error);
+        }
+      }
+    }
+
+    setRecommendations(newRecs);
+  };
+
+  // const runBatchJob = async () => {
+  //   setIsRunning(true);
+  //   toast({
+  //     title: "Starting Batch Job",
+  //     description: `Processing ${STOCK_WATCHLIST.length} stocks...`,
+  //   });
+
+  //   try {
+  //     const response = await fetch("/api/batch/run", {
+  //       method: "POST",
+  //       headers: {
+  //         "Content-Type": "application/json",
+  //       },
+  //       body: JSON.stringify({ manual: true }),
+  //     });
+
+  //     const data = await response.json();
+
+  //     if (data.success) {
+  //       setResults(data.status);
+  //       setLastRun(new Date().toLocaleString());
+  //       toast({
+  //         title: "Batch Job Complete! 🎉",
+  //         description: `Processed ${data.status.stocksProcessed} stocks, sent ${data.status.alertsSent} alerts`,
+  //       });
+  //     } else {
+  //       throw new Error(data.error || "Batch job failed");
+  //     }
+  //   } catch (error) {
+  //     toast({
+  //       title: "Batch Job Failed",
+  //       description: error instanceof Error ? error.message : "Unknown error",
+  //       variant: "destructive",
+  //     });
+  //   } finally {
+  //     setIsRunning(false);
+  //   }
+  // };
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-gray-50 to-gray-100 dark:from-gray-900 dark:to-gray-800 p-8">
       <div className="max-w-6xl mx-auto">
-        {/* Header with Logout */}
-        <div className="flex justify-between items-center mb-4">
-          <div>
-            <p className="text-sm text-muted-foreground">Welcome, {userName}</p>
-          </div>
-          <div className="flex gap-2">
-            <Button asChild variant="outline" size="sm">
-              <Link href="/dashboard">Home</Link>
-            </Button>
-            <Button variant="outline" size="sm" onClick={handleLogout}>
-              Logout
-            </Button>
-          </div>
-        </div>
-
         <div className="mb-8">
           <h1 className="text-4xl font-bold mb-2">Automated Monitoring Dashboard</h1>
           <p className="text-muted-foreground">
@@ -199,90 +517,164 @@ export default function BatchJobPage() {
           </p>
         </div>
 
-        <div className="grid lg:grid-cols-3 gap-6 mb-6">
-          <Card>
-            <CardHeader>
-              <CardTitle>Market Status</CardTitle>
-              <CardDescription>US &amp; India Markets</CardDescription>
+        <div className="grid lg:grid-cols-3 gap-4 mb-6">
+          {/* Market Status Card */}
+          <Card className="border-l-4 border-l-blue-500 hover:shadow-lg transition-shadow">
+            <CardHeader className="pb-2 pt-4">
+              <div className="flex items-center gap-2">
+                <div className="p-1.5 bg-blue-100 dark:bg-blue-900 rounded-md">
+                  <TrendingUp className="w-4 h-4 text-blue-600 dark:text-blue-400" />
+                </div>
+                <div>
+                  <CardTitle className="text-base">Market Status</CardTitle>
+                </div>
+              </div>
             </CardHeader>
-            <CardContent>
-              <div className="space-y-3">
-                <div className="flex items-center justify-between">
-                  <span className="text-sm font-medium">🇺🇸 US (NYSE/NASDAQ)</span>
-                  <Badge
-                    variant={marketStatus?.us?.isOpen ? "default" : "secondary"}
-                    className="text-sm px-3 py-1"
-                  >
-                    {marketStatus?.us?.isOpen ? "🟢 Open" : "🔴 Closed"}
-                  </Badge>
+            <CardContent className="pb-4">
+              <div className="space-y-2">
+                <div className="p-2 bg-gradient-to-r from-blue-50 to-indigo-50 dark:from-blue-950 dark:to-indigo-950 rounded-md border border-blue-200 dark:border-blue-800">
+                  <div className="flex items-center justify-between mb-1">
+                    <div className="flex items-center gap-1.5">
+                      <span className="text-lg">🇺🇸</span>
+                      <span className="text-xs font-semibold">US Market</span>
+                    </div>
+                    <Badge
+                      variant={marketStatus?.us?.isOpen ? "default" : "secondary"}
+                      className={`text-xs px-2 py-0.5 ${marketStatus?.us?.isOpen ? "bg-green-500 hover:bg-green-600" : ""}`}
+                    >
+                      {marketStatus?.us?.isOpen ? "🟢 LIVE" : "⏸️ Closed"}
+                    </Badge>
+                  </div>
                 </div>
-                {marketStatus?.us?.holiday && (
-                  <p className="text-xs text-muted-foreground ml-6">
-                    Holiday: {marketStatus.us.holiday}
-                  </p>
-                )}
-                {marketStatus?.us?.session && marketStatus?.us?.isOpen && (
-                  <p className="text-xs text-muted-foreground ml-6">
-                    Session: {marketStatus.us.session}
-                  </p>
-                )}
 
-                <div className="flex items-center justify-between pt-2 border-t">
-                  <span className="text-sm font-medium">🇮🇳 India (NSE/BSE)</span>
-                  <Badge
-                    variant={marketStatus?.india?.isOpen ? "default" : "secondary"}
-                    className="text-sm px-3 py-1"
-                  >
-                    {marketStatus?.india?.isOpen ? "🟢 Open" : "🔴 Closed"}
-                  </Badge>
+                <div className="p-2 bg-gradient-to-r from-orange-50 to-amber-50 dark:from-orange-950 dark:to-amber-950 rounded-md border border-orange-200 dark:border-orange-800">
+                  <div className="flex items-center justify-between mb-1">
+                    <div className="flex items-center gap-1.5">
+                      <span className="text-lg">🇮🇳</span>
+                      <span className="text-xs font-semibold">India Market</span>
+                    </div>
+                    <Badge
+                      variant={marketStatus?.india?.isOpen ? "default" : "secondary"}
+                      className={`text-xs px-2 py-0.5 ${marketStatus?.india?.isOpen ? "bg-green-500 hover:bg-green-600" : ""}`}
+                    >
+                      {marketStatus?.india?.isOpen ? "🟢 LIVE" : "⏸️ Closed"}
+                    </Badge>
+                  </div>
                 </div>
-                {marketStatus?.india?.holiday && (
-                  <p className="text-xs text-muted-foreground ml-6">
-                    Holiday: {marketStatus.india.holiday}
-                  </p>
-                )}
-                {marketStatus?.india?.session && marketStatus?.india?.isOpen && (
-                  <p className="text-xs text-muted-foreground ml-6">
-                    Session: {marketStatus.india.session}
-                  </p>
-                )}
               </div>
             </CardContent>
           </Card>
 
-          <Card>
-            <CardHeader>
-              <CardTitle>Watchlist</CardTitle>
-              <CardDescription>Stocks being monitored</CardDescription>
+          {/* Watchlist Card */}
+          <Card className="border-l-4 border-l-purple-500 hover:shadow-lg transition-shadow">
+            <CardHeader className="pb-3 pt-4">
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-2">
+                  <div className="p-1.5 bg-purple-100 dark:bg-purple-900 rounded-md">
+                    <List className="w-4 h-4 text-purple-600 dark:text-purple-400" />
+                  </div>
+                  <div>
+                    <CardTitle className="text-base">Watchlist</CardTitle>
+                  </div>
+                </div>
+                <div className="text-right">
+                  <div className="text-2xl font-bold bg-gradient-to-br from-purple-600 to-pink-600 bg-clip-text text-transparent">
+                    {STOCK_WATCHLIST.length}
+                  </div>
+                  <p className="text-xs text-muted-foreground">Total</p>
+                </div>
+              </div>
             </CardHeader>
-            <CardContent>
-              <div className="text-4xl font-bold">{STOCK_WATCHLIST.length}</div>
-              <p className="text-sm text-muted-foreground mt-2">Active stocks</p>
+            <CardContent className="pb-4">
+              <div className="space-y-2">
+                <div className="p-2 bg-gradient-to-r from-blue-50 to-blue-100 dark:from-blue-950 dark:to-blue-900 rounded-md border border-blue-200 dark:border-blue-800">
+                  <div className="flex items-center justify-between">
+                    <div className="flex items-center gap-1.5">
+                      <span className="text-base">🇺🇸</span>
+                      <span className="text-xs font-semibold">US Market</span>
+                    </div>
+                    <div className="text-xl font-bold text-blue-600 dark:text-blue-400">
+                      {usStocks.length}
+                    </div>
+                  </div>
+                </div>
+                <div className="p-2 bg-gradient-to-r from-orange-50 to-orange-100 dark:from-orange-950 dark:to-orange-900 rounded-md border border-orange-200 dark:border-orange-800">
+                  <div className="flex items-center justify-between">
+                    <div className="flex items-center gap-1.5">
+                      <span className="text-base">🇮🇳</span>
+                      <span className="text-xs font-semibold">India Market</span>
+                    </div>
+                    <div className="text-xl font-bold text-orange-600 dark:text-orange-400">
+                      {indiaStocks.length}
+                    </div>
+                  </div>
+                </div>
+              </div>
             </CardContent>
           </Card>
 
-          <Card>
-            <CardHeader>
-              <CardTitle>Batch Status</CardTitle>
-              <CardDescription>Trigger and monitor batch jobs</CardDescription>
+          {/* Actions Card */}
+          <Card className="border-l-4 border-l-green-500 hover:shadow-lg transition-shadow">
+            <CardHeader className="pb-2 pt-4">
+              <div className="flex items-center gap-2">
+                <div className="p-1.5 bg-green-100 dark:bg-green-900 rounded-md">
+                  <Activity className="w-4 h-4 text-green-600 dark:text-green-400" />
+                </div>
+                <div>
+                  <CardTitle className="text-base">Quick Actions</CardTitle>
+                </div>
+              </div>
             </CardHeader>
-            <CardContent className="space-y-4">
-              <div>
-                <Badge variant={isRunning ? "default" : "secondary"} className="text-lg px-4 py-2">
-                  {isRunning ? "Running..." : "Idle"}
-                </Badge>
+            <CardContent className="space-y-3 pb-4">
+              {/* Status Section */}
+              <div className="p-2 bg-muted/50 rounded-md">
+                <div className="flex items-center justify-between mb-1">
+                  <span className="text-xs font-medium text-muted-foreground">Status</span>
+                  <Badge
+                    variant={isCalculating || isRunning ? "default" : "secondary"}
+                    className={`text-xs px-2 py-0.5 ${isCalculating || isRunning ? "bg-green-500 animate-pulse" : ""}`}
+                  >
+                    {isCalculating || isRunning ? "⚡ Processing" : "💤 Idle"}
+                  </Badge>
+                </div>
                 {lastRun && (
-                  <p className="text-xs text-muted-foreground mt-3">Last run: {lastRun}</p>
+                  <div className="flex items-center gap-1 text-xs text-muted-foreground">
+                    <Clock className="w-3 h-3" />
+                    <span>Last: {lastRun}</span>
+                  </div>
+                )}
+                {volatilityData.size > 0 && (
+                  <p className="text-xs text-green-600 dark:text-green-400 mt-1.5 font-medium">
+                    ✓ {volatilityData.size} calculated
+                  </p>
                 )}
               </div>
 
-              <div className="pt-2 border-t">
-                <Button onClick={runBatchJob} disabled={isRunning} size="lg" className="w-full">
-                  {isRunning ? "Processing..." : "Run Batch Job Now"}
+              {/* Action Buttons */}
+              <div className="space-y-1.5 flex justify-center">
+                <Button
+                  onClick={calculateVolatilityStops}
+                  disabled={isCalculating || isRunning}
+                  size="sm"
+                  className="font-semibold text-xs h-9"
+                  variant="default"
+                >
+                  <TrendingUp className="w-3.5 h-3.5 mr-1.5" />
+                  {isCalculating ? "Calculating..." : "Calculate Stops"}
                 </Button>
-                <p className="text-xs text-muted-foreground mt-2 text-center">
-                  Fetches prices and calculates volatility for all {STOCK_WATCHLIST.length} stocks
-                </p>
+                {/* <Button
+                  onClick={runBatchJob}
+                  disabled={isRunning || isCalculating}
+                  size="sm"
+                  className="w-full font-semibold text-xs h-9"
+                  variant="outline"
+                >
+                  <Play className="w-3.5 h-3.5 mr-1.5" />
+                  {isRunning ? "Running..." : "Run Batch Job"}
+                </Button> */}
+                {/* <p className="text-xs text-muted-foreground text-center pt-0.5">
+                  Monitor all {STOCK_WATCHLIST.length} stocks
+                </p> */}
               </div>
             </CardContent>
           </Card>
@@ -328,10 +720,10 @@ export default function BatchJobPage() {
 
         <Card>
           <CardHeader>
-            <CardTitle>Stock Watchlist</CardTitle>
+            <CardTitle>🇺🇸 US Stocks</CardTitle>
             <CardDescription>
-              Stocks being monitored for volatility stops ({filteredAndSortedStocks.length} of{" "}
-              {STOCK_WATCHLIST.length})
+              US stocks being monitored for volatility stops ({filteredUsStocks.length} of{" "}
+              {usStocks.length})
             </CardDescription>
           </CardHeader>
           <CardContent>
@@ -362,13 +754,10 @@ export default function BatchJobPage() {
                     >
                       Name {getSortIcon("name")}
                     </TableHead>
-                    <TableHead
-                      className="text-right cursor-pointer hover:bg-muted"
-                      onClick={() => handleSort("targetPrice")}
-                    >
-                      Target Price {getSortIcon("targetPrice")}
-                    </TableHead>
-                    <TableHead
+                    <TableHead className="text-right">Current Price</TableHead>
+                    <TableHead className="text-right">Volatility Stop</TableHead>
+                    <TableHead className="text-right">Distance %</TableHead>
+                    {/* <TableHead
                       className="text-right cursor-pointer hover:bg-muted"
                       onClick={() => handleSort("atrPeriod")}
                     >
@@ -379,28 +768,109 @@ export default function BatchJobPage() {
                       onClick={() => handleSort("atrMultiplier")}
                     >
                       Multiplier {getSortIcon("atrMultiplier")}
-                    </TableHead>
+                    </TableHead> */}
+                    <TableHead>Last Updated</TableHead>
+                    <TableHead>Analyst Rating</TableHead>
+                    <TableHead>Recommendation</TableHead>
                   </TableRow>
                 </TableHeader>
                 <TableBody>
-                  {filteredAndSortedStocks.length === 0 ? (
+                  {filteredUsStocks.length === 0 ? (
                     <TableRow>
-                      <TableCell colSpan={5} className="text-center text-muted-foreground py-8">
-                        No stocks found matching &quot;{searchQuery}&quot;
+                      <TableCell colSpan={8} className="text-center text-muted-foreground py-8">
+                        {searchQuery
+                          ? `No US stocks found matching "${searchQuery}"`
+                          : "No US stocks in watchlist"}
                       </TableCell>
                     </TableRow>
                   ) : (
-                    filteredAndSortedStocks.map((stock) => (
-                      <TableRow key={stock.symbol}>
-                        <TableCell className="font-bold">{stock.symbol}</TableCell>
-                        <TableCell>{stock.name}</TableCell>
-                        <TableCell className="text-right">
-                          {stock.targetPrice ? formatPrice(stock.targetPrice, stock.symbol) : "—"}
-                        </TableCell>
-                        <TableCell className="text-right">{stock.atrPeriod || 14}</TableCell>
-                        <TableCell className="text-right">{stock.atrMultiplier || 2.0}x</TableCell>
-                      </TableRow>
-                    ))
+                    filteredUsStocks.map((stock) => {
+                      const vData = volatilityData.get(stock.symbol);
+                      return (
+                        <TableRow key={stock.symbol}>
+                          <TableCell className="font-bold">{stock.symbol}</TableCell>
+                          <TableCell>{stock.name}</TableCell>
+                          <TableCell className="text-right">
+                            {stockPrices.has(stock.symbol) ? (
+                              <span className="font-semibold">
+                                {formatPrice(stockPrices.get(stock.symbol)!.price, stock.symbol)}
+                              </span>
+                            ) : vData ? (
+                              <span className="font-semibold">
+                                {formatPrice(vData.currentPrice, stock.symbol)}
+                              </span>
+                            ) : (
+                              <span className="text-xs text-muted-foreground">Loading...</span>
+                            )}
+                          </TableCell>
+                          <TableCell className="text-right">
+                            {vData ? (
+                              <span className="text-red-600 font-semibold">
+                                {formatPrice(vData.volatilityStop.stopLoss, stock.symbol)}
+                              </span>
+                            ) : (
+                              <span className="text-muted-foreground text-center block">—</span>
+                            )}
+                          </TableCell>
+                          <TableCell className="text-right">
+                            {vData ? (
+                              <Badge
+                                variant={
+                                  vData.volatilityStop.stopLossPercentage > 10
+                                    ? "default"
+                                    : vData.volatilityStop.stopLossPercentage > 5
+                                      ? "secondary"
+                                      : "destructive"
+                                }
+                              >
+                                {vData.volatilityStop.stopLossPercentage.toFixed(1)}%
+                              </Badge>
+                            ) : (
+                              <span className="text-muted-foreground text-center block">—</span>
+                            )}
+                          </TableCell>
+                          {/* <TableCell className="text-right">{stock.atrPeriod || 14}</TableCell>
+                          <TableCell className="text-right">
+                            {stock.atrMultiplier || 2.0}x
+                          </TableCell> */}
+                          <TableCell>
+                            {stockPrices.has(stock.symbol) ? (
+                              <div className="text-xs text-muted-foreground">
+                                {stockPrices.get(stock.symbol)!.fetchedAt.toLocaleTimeString()}
+                              </div>
+                            ) : (
+                              <span className="text-muted-foreground text-center block">—</span>
+                            )}
+                          </TableCell>
+                          <TableCell>
+                            {recommendations.has(stock.symbol) ? (
+                              getRecommendationBadge(recommendations.get(stock.symbol)!)
+                            ) : (
+                              <span className="text-xs text-muted-foreground text-center block">
+                                —
+                              </span>
+                            )}
+                          </TableCell>
+                          <TableCell>
+                            {vData ? (
+                              <Badge
+                                className={
+                                  vData.volatilityStop.recommendation === "BUY"
+                                    ? "bg-green-600 text-white"
+                                    : vData.volatilityStop.recommendation === "SELL"
+                                      ? "bg-red-600 text-white"
+                                      : "bg-yellow-600 text-white"
+                                }
+                              >
+                                {vData.volatilityStop.recommendation}
+                              </Badge>
+                            ) : (
+                              <span className="text-muted-foreground text-center block">—</span>
+                            )}
+                          </TableCell>
+                        </TableRow>
+                      );
+                    })
                   )}
                 </TableBody>
               </Table>
@@ -408,11 +878,12 @@ export default function BatchJobPage() {
           </CardContent>
         </Card>
 
-        {/* <Card>
+        <Card>
           <CardHeader>
-            <CardTitle>Indian Stock Watchlist</CardTitle>
+            <CardTitle>🇮🇳 India Stocks</CardTitle>
             <CardDescription>
-              India-focused symbols monitored for volatility stops
+              Indian stocks being monitored for volatility stops ({filteredIndiaStocks.length} of{" "}
+              {indiaStocks.length})
             </CardDescription>
           </CardHeader>
           <CardContent>
@@ -420,34 +891,119 @@ export default function BatchJobPage() {
               <Table>
                 <TableHeader>
                   <TableRow>
-                    <TableHead>Symbol</TableHead>
-                    <TableHead>Name</TableHead>
-                    <TableHead className="text-right">Target Price</TableHead>
-                    <TableHead className="text-right">ATR Period</TableHead>
-                    <TableHead className="text-right">Multiplier</TableHead>
+                    <TableHead
+                      className="cursor-pointer hover:bg-muted"
+                      onClick={() => handleSort("symbol")}
+                    >
+                      Symbol {getSortIcon("symbol")}
+                    </TableHead>
+                    <TableHead
+                      className="cursor-pointer hover:bg-muted"
+                      onClick={() => handleSort("name")}
+                    >
+                      Name {getSortIcon("name")}
+                    </TableHead>
+                    <TableHead className="text-right">Current Price</TableHead>
+                    <TableHead className="text-right">Volatility Stop</TableHead>
+                    <TableHead className="text-right">Distance %</TableHead>
+                    <TableHead>Last Updated</TableHead>
+                    <TableHead>Recommendation</TableHead>
                   </TableRow>
                 </TableHeader>
                 <TableBody>
-                  {indianStocks.map((stock) => (
-                    <TableRow key={stock.symbol}>
-                      <TableCell className="font-bold">{stock.symbol}</TableCell>
-                      <TableCell>{stock.name}</TableCell>
-                      <TableCell className="text-right">
-                        {stock.targetPrice ? formatPrice(stock.targetPrice, stock.symbol) : "—"}
-                      </TableCell>
-                      <TableCell className="text-right">
-                        {stock.atrPeriod || 14}
-                      </TableCell>
-                      <TableCell className="text-right">
-                        {stock.atrMultiplier || 2.0}x
+                  {filteredIndiaStocks.length === 0 ? (
+                    <TableRow>
+                      <TableCell colSpan={7} className="text-center text-muted-foreground py-8">
+                        {searchQuery
+                          ? `No Indian stocks found matching "${searchQuery}"`
+                          : "No Indian stocks in watchlist"}
                       </TableCell>
                     </TableRow>
-                  ))}
+                  ) : (
+                    filteredIndiaStocks.map((stock) => {
+                      const vData = volatilityData.get(stock.symbol);
+                      return (
+                        <TableRow key={stock.symbol}>
+                          <TableCell className="font-bold">{stock.symbol}</TableCell>
+                          <TableCell>{stock.name}</TableCell>
+                          <TableCell className="text-right">
+                            {stockPrices.has(stock.symbol) ? (
+                              <span className="font-semibold">
+                                {formatPrice(stockPrices.get(stock.symbol)!.price, stock.symbol)}
+                              </span>
+                            ) : vData ? (
+                              <span className="font-semibold">
+                                {formatPrice(vData.currentPrice, stock.symbol)}
+                              </span>
+                            ) : (
+                              <span className="text-xs text-muted-foreground">Loading...</span>
+                            )}
+                          </TableCell>
+                          <TableCell className="text-right">
+                            {vData ? (
+                              <span className="text-red-600 font-semibold">
+                                {formatPrice(vData.volatilityStop.stopLoss, stock.symbol)}
+                              </span>
+                            ) : (
+                              <span className="text-muted-foreground text-center block">—</span>
+                            )}
+                          </TableCell>
+                          <TableCell className="text-right">
+                            {vData ? (
+                              <Badge
+                                variant={
+                                  vData.volatilityStop.stopLossPercentage > 10
+                                    ? "default"
+                                    : vData.volatilityStop.stopLossPercentage > 5
+                                      ? "secondary"
+                                      : "destructive"
+                                }
+                              >
+                                {vData.volatilityStop.stopLossPercentage.toFixed(1)}%
+                              </Badge>
+                            ) : (
+                              <span className="text-muted-foreground text-center block">—</span>
+                            )}
+                          </TableCell>
+                          {/* <TableCell className="text-right">{stock.atrPeriod || 14}</TableCell>
+                          <TableCell className="text-right">
+                            {stock.atrMultiplier || 2.0}x
+                          </TableCell> */}
+                          <TableCell>
+                            {stockPrices.has(stock.symbol) ? (
+                              <div className="text-xs text-muted-foreground">
+                                {stockPrices.get(stock.symbol)!.fetchedAt.toLocaleTimeString()}
+                              </div>
+                            ) : (
+                              <span className="text-muted-foreground text-center block">—</span>
+                            )}
+                          </TableCell>
+                          <TableCell>
+                            {vData ? (
+                              <Badge
+                                className={
+                                  vData.volatilityStop.recommendation === "BUY"
+                                    ? "bg-green-600 text-white"
+                                    : vData.volatilityStop.recommendation === "SELL"
+                                      ? "bg-red-600 text-white"
+                                      : "bg-yellow-600 text-white"
+                                }
+                              >
+                                {vData.volatilityStop.recommendation}
+                              </Badge>
+                            ) : (
+                              <span className="text-muted-foreground text-center block">—</span>
+                            )}
+                          </TableCell>
+                        </TableRow>
+                      );
+                    })
+                  )}
                 </TableBody>
               </Table>
             </div>
           </CardContent>
-        </Card> */}
+        </Card>
       </div>
     </div>
   );

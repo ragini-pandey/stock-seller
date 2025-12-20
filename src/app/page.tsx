@@ -1,7 +1,6 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import { useRouter } from "next/navigation";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
@@ -11,13 +10,11 @@ import Link from "next/link";
 import { isAuthenticated, getCurrentUser, logout } from "@/lib/auth";
 
 export default function Home() {
-  const router = useRouter();
   const [isLoggedIn, setIsLoggedIn] = useState(false);
   const [isLoading, setIsLoading] = useState(true);
   const [userName, setUserName] = useState("");
   const { toast } = useToast();
 
-  // Login form state
   const [name, setName] = useState("");
   const [phoneNumber, setPhoneNumber] = useState("");
 
@@ -101,10 +98,10 @@ export default function Home() {
       <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-gray-50 to-gray-100 dark:from-gray-900 dark:to-gray-800 p-4">
         <Card className="w-full max-w-md">
           <CardHeader className="text-center">
-            <CardTitle className="text-3xl font-bold bg-clip-text text-transparent bg-gradient-to-r from-blue-600 to-purple-600">
+            <CardTitle className="text-2xl sm:text-3xl font-bold bg-clip-text text-transparent bg-gradient-to-r from-blue-600 to-purple-600">
               Stock Monitoring System
             </CardTitle>
-            <CardDescription className="text-base mt-2">
+            <CardDescription className="text-sm sm:text-base mt-2">
               Login to access automated stock volatility monitoring
             </CardDescription>
           </CardHeader>
@@ -147,65 +144,80 @@ export default function Home() {
 
   // Show dashboard if authenticated
   return (
-    <div className="min-h-screen bg-gradient-to-br from-gray-50 to-gray-100 dark:from-gray-900 dark:to-gray-800 p-8">
+    <div className="min-h-screen bg-gradient-to-br from-gray-50 to-gray-100 dark:from-gray-900 dark:to-gray-800 p-4 sm:p-6 lg:p-8">
       <div className="max-w-6xl mx-auto">
         {/* Header */}
-        <div className="mb-8 flex justify-between items-center">
+        <div className="mb-6 sm:mb-8 flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
           <div>
-            <h1 className="text-4xl font-bold mb-2 bg-clip-text text-transparent bg-gradient-to-r from-blue-600 to-purple-600">
+            <h1 className="text-2xl sm:text-3xl lg:text-4xl font-bold mb-2 bg-clip-text text-transparent bg-gradient-to-r from-blue-600 to-purple-600">
               Stock Monitoring Dashboard
             </h1>
-            <p className="text-muted-foreground">Welcome back, {userName}!</p>
+            <p className="text-sm sm:text-base text-muted-foreground">Welcome back, {userName}!</p>
           </div>
-          <Button onClick={handleLogout} variant="destructive">
+          <Button
+            onClick={handleLogout}
+            variant="destructive"
+            size="sm"
+            className="w-full sm:w-auto"
+          >
             Logout
           </Button>
         </div>
 
         {/* Main Actions */}
-        <div className="grid md:grid-cols-3 gap-6">
+        <div className="grid sm:grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 sm:gap-6">
           <Card>
             <CardHeader>
-              <CardTitle>🤖 Batch Monitor</CardTitle>
-              <CardDescription>View automated monitoring status</CardDescription>
+              <CardTitle className="text-lg sm:text-xl">🤖 Batch Monitor</CardTitle>
+              <CardDescription className="text-sm">
+                View automated monitoring status
+              </CardDescription>
             </CardHeader>
             <CardContent>
               <p className="text-sm text-muted-foreground mb-4">
                 Check hourly batch job status, view results, and manually trigger jobs
               </p>
-              <Button asChild className="w-full">
-                <Link href="/batch">Open Batch Monitor</Link>
-              </Button>
+              <div className="flex justify-center">
+                <Button asChild>
+                  <Link href="/batch">Open Batch Monitor</Link>
+                </Button>
+              </div>
             </CardContent>
           </Card>
 
           <Card>
             <CardHeader>
-              <CardTitle>📝 Manage Watchlist</CardTitle>
-              <CardDescription>Add, edit, or remove stocks</CardDescription>
+              <CardTitle className="text-lg sm:text-xl">📝 Manage Watchlist</CardTitle>
+              <CardDescription className="text-sm">Add, edit, or remove stocks</CardDescription>
             </CardHeader>
             <CardContent>
               <p className="text-sm text-muted-foreground mb-4">
                 Customize your stock watchlist with regional organization
               </p>
-              <Button asChild className="w-full" variant="secondary">
-                <Link href="/watchlist">Manage Watchlist</Link>
-              </Button>
+              <div className="flex justify-center">
+                <Button asChild variant="secondary">
+                  <Link href="/watchlist">Manage Watchlist</Link>
+                </Button>
+              </div>
             </CardContent>
           </Card>
 
           <Card>
             <CardHeader>
-              <CardTitle>📈 View Stocks</CardTitle>
-              <CardDescription>Browse monitored stocks</CardDescription>
+              <CardTitle className="text-lg sm:text-xl">📊 Volatility Stop</CardTitle>
+              <CardDescription className="text-sm">
+                Calculate volatility-based stop loss
+              </CardDescription>
             </CardHeader>
             <CardContent>
               <p className="text-sm text-muted-foreground mb-4">
-                View all stocks being monitored and subscribe to alerts
+                Analyze stock volatility and determine optimal stop-loss levels
               </p>
-              <Button asChild className="w-full" variant="outline">
-                <Link href="/stocks">View Stock List</Link>
-              </Button>
+              <div className="flex justify-center">
+                <Button asChild variant="outline">
+                  <Link href="/volatility-stop">Volatility Analyzer</Link>
+                </Button>
+              </div>
             </CardContent>
           </Card>
         </div>

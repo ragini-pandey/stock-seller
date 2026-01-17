@@ -31,9 +31,7 @@ export function initializeFirebaseAdmin() {
         "Firebase credentials not configured. Please set FIREBASE_SERVICE_ACCOUNT_JSON environment variable."
       );
     }
-
     const serviceAccount = JSON.parse(serviceAccountJson);
-
     const credential = admin.credential.cert(serviceAccount);
 
     firebaseAdmin = admin.initializeApp({
